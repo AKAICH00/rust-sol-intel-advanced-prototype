@@ -1,0 +1,43 @@
+# ALERT: HIGH RUG PULL RISK DETECTED
+
+## Position Data
+- Token: {mint}
+- Entry: {entry_sol} SOL
+- Current: {current_sol} SOL
+- Profit: {profit_multiple}x
+- Time Held: {time_elapsed}s
+
+## DANGER SIGNALS
+- **RUG RISK: {rug_risk}/1.0** ⚠️
+- Momentum Score: {momentum_score}/1.0
+- Volume Velocity: {volume_velocity}/1.0
+- Holder Health: {holder_health}/1.0
+
+## Sniper Rules Context
+- Rule #7: Fast exit on danger signals
+- PRIORITY: Speed > Everything when rug_risk > 0.7
+
+## CRITICAL DECISION
+
+Rug detection has flagged this token as HIGH RISK.
+
+**When rug_risk > 0.7: SPEED IS 100% MORE IMPORTANT**
+
+Considerations:
+- If rug_risk > 0.8: EXIT NOW, no questions
+- If rug_risk 0.6-0.8 AND profit > 1.5x: Consider fast partial exit
+- If rug_risk 0.6-0.8 AND profit < 1.0x: Cut losses NOW
+- Holder concentration matters more than momentum here
+
+**Provide IMMEDIATE decision:**
+```json
+{
+  "action": "Emergency",
+  "exit_percent": 100.0,
+  "confidence": 0.95,
+  "reasoning": "Rug risk 0.85 - critical threshold. Whale concentration detected. EXIT IMMEDIATELY regardless of profit.",
+  "suggested_stop": null
+}
+```
+
+Remember: **A rug pull takes your position to ZERO. Better to exit early than lose everything.**

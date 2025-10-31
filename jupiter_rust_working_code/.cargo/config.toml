@@ -1,0 +1,5 @@
+[target.aarch64-apple-darwin]
+linker = "/usr/bin/cc"
+
+[build]
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/ld"]

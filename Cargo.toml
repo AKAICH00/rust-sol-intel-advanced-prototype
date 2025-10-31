@@ -10,9 +10,21 @@ futures-util = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
+thiserror = "2.0"
+
+# Jupiter SDK for DEX execution
+jup-ag-sdk = { path = "jupiter_rust_working_code/jup-ag-sdk" }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
+# Solana blockchain interaction
+solana-client = "2.1"
+solana-sdk = "2.1"
+solana-transaction-status = "2.1"
 
 # Data ingestion and storage
 questdb-rs = "5.0.0"
+rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = "0.4"
 
 # ONNX inference
 ort = "2.0.0-rc.10"
@@ -30,3 +42,12 @@ once_cell = "1.18"
 opentelemetry = { version = "0.19", features = ["rt-tokio", "trace"] }
 opentelemetry-jaeger = { version = "0.17", default-features = false, features = ["rt-tokio"] }
 tracing-opentelemetry = "0.19"
+
+# Environment and configuration
+dotenv = "0.15"
+log = "0.4"
+env_logger = "0.11"
+
+# Encoding and serialization
+base64 = "0.22"
+bincode = "1.3"

@@ -1,0 +1,42 @@
+# EXIT DECISION: 2x Profit Target Reached
+
+## Position Data
+- Token: {mint}
+- Entry: {entry_sol} SOL
+- Current: {current_sol} SOL
+- Profit: {profit_multiple}x
+- Time Held: {time_elapsed}s
+
+## Momentum Indicators
+- Momentum Score: {momentum_score}/1.0
+- Rug Risk: {rug_risk}/1.0
+- Volume Velocity: {volume_velocity}/1.0
+- Price Momentum: {price_momentum}/1.0
+- Holder Health: {holder_health}/1.0
+
+## Sniper Rules Context
+- Rule #9: At 2x, recover initial + 10% (110% total), trail the rest
+- Has Recovered Initial: {has_recovered}
+
+## Decision Required
+
+You've hit 2x profit. The rule says recover 110% and trail the rest.
+
+BUT - check momentum:
+- If momentum_score > 0.7: Consider holding longer or partial exit
+- If rug_risk > 0.5: Speed matters - take the 2x NOW
+- If volume_velocity is increasing: May go higher
+- If holder_health is deteriorating: Exit risk increasing
+
+**Provide decision in JSON format:**
+```json
+{
+  "action": "ExitPartial",
+  "exit_percent": 55.0,
+  "confidence": 0.85,
+  "reasoning": "2x hit with high momentum (0.8). Exit 55% to recover 110%, hold 45% for continued run. Low rug risk (0.2) supports holding remainder.",
+  "suggested_stop": 10.0
+}
+```
+
+Actions: Hold | ExitFull | ExitPartial | Trail | Emergency

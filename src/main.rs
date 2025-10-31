@@ -1,8 +1,10 @@
+mod database;
 mod execution;
 mod feature_buffer;
 mod inference;
 mod metrics;
 mod questdb;
+mod risk_manager;
 mod types;
 mod vector_store;
 mod websocket;
@@ -14,6 +16,11 @@ use inference::InferenceEngine;
 use once_cell::sync::Lazy;
 use prometheus::{gather, Encoder, TextEncoder};
 use questdb::QuestDBClient;
+use std::sync::Arc;
+use tracing_subscriber::prelude::*;
+use vector_store::VectorStore;
+use warp::Filter;
+use websocket::stream_jupiter_websocket;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

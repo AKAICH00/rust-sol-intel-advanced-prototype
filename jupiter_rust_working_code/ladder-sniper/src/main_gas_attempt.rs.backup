@@ -1,0 +1,348 @@
+use anyhow::Result;
+use dotenv::dotenv;
+use futures_util::{SinkExt, StreamExt};
+use log::{info, warn, error};
+use pump_portal_sdk::{PumpPortalClient, TradeRequest};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+
+mod deepseek;
+mod momentum;
+mod balance_checker;
+
+#[derive(Debug, Clone)]
+struct Position {
+    mint: String,
+    entry_price_usd: f64,
+    total_sol_invested: f64,
+    ladder_count: u32,
+    profits_taken: bool,
+    entry_time: std::time::Instant,
+    last_momentum_check: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenCreatedEvent {
+    signature: Option<String>,
+    mint: Option<String>,
+    #[serde(rename = "traderPublicKey")]
+    trader_public_key: Option<String>,
+    #[serde(rename = "txType")]
+    tx_type: Option<String>,
+    #[serde(rename = "initialBuy")]
+    initial_buy: Option<f64>,
+    name: Option<String>,
+    symbol: Option<String>,
+}
+
+type Positions = Arc<Mutex<HashMap<String, Position>>>;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    env_logger::init();
+    dotenv().ok();
+
+    info!("🪜 LADDER SNIPER BOT - Gas-Safe Edition");
+    info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    let api_key = env::var("PUMPPORTAL_API_KEY").expect("PUMPPORTAL_API_KEY required");
+    let deepseek_key = env::var("DEEPSEEK_API_KEY").ok();
+    
+    let base_amount = env::var("BASE_AMOUNT_SOL")
+        .unwrap_or_else(|_| "0.02".to_string())
+        .parse::<f64>()?;
+
+    let max_ladder_ins = env::var("MAX_LADDER_INS")
+        .unwrap_or_else(|_| "3".to_string())
+        .parse::<u32>()?;
+
+    let gas_reserve = env::var("GAS_RESERVE_SOL")
+        .unwrap_or_else(|_| "0.02".to_string())
+        .parse::<f64>()?;
+
+    info!("💰 Config:");
+    info!("   Base Amount: {} SOL", base_amount);
+    info!("   Max Ladder-Ins: {} ({}x max position)", max_ladder_ins, max_ladder_ins + 1);
+    info!("   Gas Reserve: {} SOL (ALWAYS KEPT FOR EXITS)", gas_reserve);
+    info!("   DeepSeek AI: {}", if deepseek_key.is_some() { "✅" } else { "❌" });
+    info!("   Strategy:");
+    info!("     1. Buy all launches ({} SOL)", base_amount);
+    info!("     2. Ladder in {} SOL on momentum", base_amount);
+    info!("     3. Take 50% profit at 2x");
+    info!("     4. Let winners run\n");
+
+    let client = Arc::new(PumpPortalClient::new(api_key.clone()));
+    let positions: Positions = Arc::new(Mutex::new(HashMap::new()));
+
+    // Start position monitor
+    let monitor_client = client.clone();
+    let monitor_positions = positions.clone();
+    let monitor_deepseek = deepseek_key.clone();
+    let monitor_api_key = api_key.clone();
+    tokio::spawn(async move {
+        monitor_positions_loop(
+            monitor_client,
+            monitor_positions,
+            monitor_deepseek,
+            monitor_api_key,
+            base_amount,
+            max_ladder_ins,
+            gas_reserve
+        ).await;
+    });
+
+    // Connect to PumpPortal WebSocket
+    info!("📡 Connecting to PumpPortal WebSocket...");
+    let ws_url = "wss://pumpportal.fun/api/data";
+    let (ws_stream, _) = connect_async(ws_url).await?;
+    let (mut write, mut read) = ws_stream.split();
+
+    let subscribe_msg = serde_json::json!({
+        "method": "subscribeNewToken"
+    });
+    write.send(Message::Text(subscribe_msg.to_string())).await?;
+    info!("✅ Subscribed to new token launches\n");
+    info!("🎯 BUYING ALL LAUNCHES (with gas reserve check)... Press Ctrl+C to stop\n");
+
+    while let Some(msg) = read.next().await {
+        match msg {
+            Ok(Message::Text(text)) => {
+                if let Ok(event) = serde_json::from_str::<TokenCreatedEvent>(&text) {
+                    if let (Some(mint), Some(name), Some(symbol)) = (event.mint, event.name, event.symbol) {
+                        info!("🔔 NEW LAUNCH: {} ({})", name, symbol);
+
+                        // CHECK GAS RESERVE BEFORE BUYING
+                        match balance_checker::check_sol_balance(&api_key).await {
+                            Ok(balance) => {
+                                if !balance_checker::has_enough_for_trade(balance, base_amount, gas_reserve) {
+                                    warn!("🚨 SKIPPING - Not enough SOL! Balance: {:.4}, Need: {:.4} (trade) + {:.4} (gas)",
+                                        balance, base_amount, gas_reserve);
+                                    warn!("   PAUSING BUYS - Waiting for exits to free up capital\n");
+                                    continue;
+                                }
+
+                                if balance < (base_amount + gas_reserve) * 2.0 {
+                                    warn!("⚠️  LOW BALANCE WARNING: {:.4} SOL (close to gas reserve limit)", balance);
+                                }
+
+                                // Execute buy
+                                match execute_buy(&client, &mint, base_amount).await {
+                                    Ok(signature) => {
+                                        info!("✅ INITIAL BUY: {} SOL (Balance: {:.4})", base_amount, balance - base_amount);
+
+                                        let position = Position {
+                                            mint: mint.clone(),
+                                            entry_price_usd: 0.0,
+                                            total_sol_invested: base_amount,
+                                            ladder_count: 0,
+                                            profits_taken: false,
+                                            entry_time: std::time::Instant::now(),
+                                            last_momentum_check: 0,
+                                        };
+                                        positions.lock().await.insert(mint, position);
+
+                                        let pos_count = positions.lock().await.len();
+                                        info!("💼 Open Positions: {}\n", pos_count);
+                                    }
+                                    Err(e) => {
+                                        error!("❌ Buy failed: {}\n", e);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                error!("❌ Balance check failed: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Message::Close(_)) => {
+                warn!("WebSocket closed");
+                break;
+            }
+            Err(e) => {
+                error!("WebSocket error: {}", e);
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+async fn execute_buy(client: &PumpPortalClient, mint: &str, amount_sol: f64) -> Result<String> {
+    let request = TradeRequest::buy(
+        mint.to_string(),
+        amount_sol,
+        15,
+        0.0001,
+    ).with_jito_only(true);
+
+    let response = client.trade(request).await?;
+    Ok(response.signature.unwrap_or_else(|| "unknown".to_string()))
+}
+
+async fn execute_sell(client: &PumpPortalClient, mint: &str, percent: u32) -> Result<String> {
+    let amount = format!("{}%", percent);
+    let request = TradeRequest::sell(
+        mint.to_string(),
+        amount,
+        20,
+        0.0001,
+    ).with_jito_only(true);
+
+    let response = client.trade(request).await?;
+    Ok(response.signature.unwrap_or_else(|| "unknown".to_string()))
+}
+
+async fn monitor_positions_loop(
+    client: Arc<PumpPortalClient>,
+    positions: Positions,
+    deepseek_key: Option<String>,
+    api_key: String,
+    base_amount: f64,
+    max_ladder_ins: u32,
+    gas_reserve: f64,
+) {
+    info!("👀 AI Position Monitor Started (Gas-Safe)\n");
+
+    loop {
+        sleep(Duration::from_secs(10)).await;
+
+        let positions_snapshot: Vec<Position> = {
+            let locked = positions.lock().await;
+            locked.values().cloned().collect()
+        };
+
+        if positions_snapshot.is_empty() {
+            continue;
+        }
+
+        info!("📊 Monitoring {} positions...", positions_snapshot.len());
+
+        for position in positions_snapshot {
+            let elapsed = position.entry_time.elapsed().as_secs();
+            let mint_short = &position.mint[..8];
+
+            match momentum::check_momentum(&position.mint, elapsed).await {
+                Ok(momentum_data) => {
+                    if !momentum_data.has_data {
+                        info!("   {} ({}s) - No market data yet, waiting...", mint_short, elapsed);
+                        continue;
+                    }
+
+                    let current_price = momentum_data.price_usd;
+                    let mut pos_clone = position.clone();
+
+                    if pos_clone.entry_price_usd == 0.0 {
+                        pos_clone.entry_price_usd = current_price;
+                        if let Some(pos) = positions.lock().await.get_mut(&position.mint) {
+                            pos.entry_price_usd = current_price;
+                        }
+                    }
+
+                    let pnl_multiplier = if pos_clone.entry_price_usd > 0.0 {
+                        current_price / pos_clone.entry_price_usd
+                    } else {
+                        1.0
+                    };
+                    let pnl_percent = (pnl_multiplier - 1.0) * 100.0;
+
+                    info!("   {} ({}s) - P&L: {:.1}x ({:+.0}%) | Δ5m: {:+.0}% | Buy: {:.0}%",
+                        mint_short,
+                        elapsed,
+                        pnl_multiplier,
+                        pnl_percent,
+                        momentum_data.price_change_5m,
+                        momentum_data.buy_pressure * 100.0
+                    );
+
+                    // TAKE PROFIT AT 2X
+                    if !pos_clone.profits_taken && pnl_multiplier >= 2.0 {
+                        info!("   🎯 2X PROFIT! Taking out initial investment (50%)");
+                        match execute_sell(&client, &position.mint, 50).await {
+                            Ok(sig) => {
+                                info!("   ✅ SOLD 50%: {}", sig);
+                                if let Some(pos) = positions.lock().await.get_mut(&position.mint) {
+                                    pos.profits_taken = true;
+                                }
+                            }
+                            Err(e) => error!("   ❌ Sell failed: {}", e),
+                        }
+                        continue;
+                    }
+
+                    // LADDER IN LOGIC (with gas reserve check)
+                    if pos_clone.ladder_count < max_ladder_ins && momentum_data.should_ladder_in() {
+                        // Check balance before ladder-in
+                        match balance_checker::check_sol_balance(&api_key).await {
+                            Ok(balance) => {
+                                if !balance_checker::has_enough_for_trade(balance, base_amount, gas_reserve) {
+                                    warn!("   ⚠️  Can't ladder in - need gas reserve (bal: {:.4})", balance);
+                                    continue;
+                                }
+
+                                let ai_approved = if let Some(ref key) = deepseek_key {
+                                    match deepseek::analyze_token(&position.mint, &momentum_data, key).await {
+                                        Ok(analysis) => {
+                                            info!("   🧠 DeepSeek: {} (confidence: {:.0}%)",
+                                                if analysis.should_buy { "BUY MORE" } else { "HOLD" },
+                                                analysis.confidence * 100.0
+                                            );
+                                            analysis.should_buy
+                                        }
+                                        Err(e) => {
+                                            warn!("   ⚠️  AI analysis failed: {}", e);
+                                            true
+                                        }
+                                    }
+                                } else {
+                                    true
+                                };
+
+                                if ai_approved {
+                                    info!("   📈 LADDERING IN {} SOL (#{} add)", base_amount, pos_clone.ladder_count + 1);
+                                    match execute_buy(&client, &position.mint, base_amount).await {
+                                        Ok(sig) => {
+                                            info!("   ✅ LADDER BUY: {}", sig);
+                                            if let Some(pos) = positions.lock().await.get_mut(&position.mint) {
+                                                pos.ladder_count += 1;
+                                                pos.total_sol_invested += base_amount;
+                                            }
+                                        }
+                                        Err(e) => error!("   ❌ Ladder buy failed: {}", e),
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                error!("   ⚠️  Balance check failed: {}", e);
+                            }
+                        }
+                    }
+
+                    // EXIT LOGIC
+                    if !momentum_data.should_hold {
+                        info!("   ❌ NO MOMENTUM - Exiting position");
+                        match execute_sell(&client, &position.mint, 100).await {
+                            Ok(sig) => {
+                                info!("   ✅ SOLD 100%: {}", sig);
+                                positions.lock().await.remove(&position.mint);
+                            }
+                            Err(e) => error!("   ❌ Sell failed: {}", e),
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("   ⚠️  Momentum check failed for {}: {}", mint_short, e);
+                }
+            }
+        }
+
+        info!(""); // Blank line
+    }
+}

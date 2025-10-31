@@ -1,0 +1,19 @@
+[package]
+name = "smart-sniper"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+pump-portal-sdk = { path = "../pump-portal-sdk" }
+tokio = { version = "1.45", features = ["full"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dotenv = "0.15"
+log = "0.4"
+env_logger = "0.11"
+anyhow = "1.0"
+futures-util = "0.3"
+reqwest = { version = "0.11", features = ["json"] }
+# rusqlite = { version = "0.31", features = ["bundled"] }  # TODO: Add when implementing database
+# chrono = "0.4"  # TODO: Add when implementing database

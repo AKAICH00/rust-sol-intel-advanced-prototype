@@ -1,0 +1,26 @@
+# HIGH MOMENTUM DETECTED
+
+## Position Data
+- Token: {mint}
+- Entry: {entry_sol} SOL
+- Current: {current_sol} SOL
+- Profit: {profit_multiple}x
+- Time Held: {time_elapsed}s
+
+## Strong Momentum Signals
+- **Momentum Score: {momentum_score}/1.0** 🚀
+- Rug Risk: {rug_risk}/1.0
+- Volume Velocity: {volume_velocity}/1.0
+- Price Momentum: {price_momentum}/1.0
+
+## Decision
+
+Strong upward momentum detected while in profit.
+
+Consider:
+- If profit < 1.5x: Let it run with trailing stop
+- If profit 1.5-2x: Partial exit to secure base
+- If profit > 2x: Apply Rule #9 with wider trail
+- If rug_risk low AND momentum > 0.85: Maximum upside potential
+
+Provide decision in JSON format.

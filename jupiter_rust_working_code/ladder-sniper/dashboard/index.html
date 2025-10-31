@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$1M Research Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            background: #0a0e27;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #1a1f3a;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card.positive {
+            border-left-color: #10b981;
+        }
+
+        .stat-card.negative {
+            border-left-color: #ef4444;
+        }
+
+        .stat-label {
+            font-size: 0.75em;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .stat-change {
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        .section {
+            background: #1a1f3a;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .holder-flow {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: #0f1529;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .holder-box {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            background: #1a1f3a;
+            border-radius: 6px;
+        }
+
+        .arrow {
+            font-size: 2em;
+            color: #667eea;
+        }
+
+        .arrow.up {
+            color: #10b981;
+        }
+
+        .arrow.down {
+            color: #ef4444;
+        }
+
+        .positions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .positions-table th {
+            background: #0f1529;
+            padding: 12px;
+            text-align: left;
+            font-size: 0.85em;
+            color: #9ca3af;
+        }
+
+        .positions-table td {
+            padding: 12px;
+            border-bottom: 1px solid #2a2f4a;
+        }
+
+        .positions-table tr:hover {
+            background: #0f1529;
+        }
+
+        .pnl-positive {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .pnl-negative {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .decision-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            background: #667eea;
+            color: white;
+        }
+
+        .decision-badge.vwap {
+            background: #f59e0b;
+        }
+
+        .decision-badge.momentum {
+            background: #8b5cf6;
+        }
+
+        .decision-badge.time {
+            background: #06b6d4;
+        }
+
+        .update-time {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.85em;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .holder-change {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .trend-icon {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 $1M Research Dashboard</h1>
+            <div class="subtitle">Real-time holder count correlation analysis</div>
+        </header>
+
+        <!-- Key Stats -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value" id="totalTrades">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="winRate">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total P&L</div>
+                <div class="stat-value" id="totalPnl">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Open Positions</div>
+                <div class="stat-value" id="openPositions">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Hold Time</div>
+                <div class="stat-value" id="avgHoldTime">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Closed Positions</div>
+                <div class="stat-value" id="closedPositions">-</div>
+            </div>
+        </div>
+
+        <!-- Holder Flow Analysis -->
+        <div class="section">
+            <div class="section-title">👥 Holder Count Flow</div>
+            <div class="holder-flow">
+                <div class="holder-box">
+                    <div class="stat-label">Entry Holders</div>
+                    <div class="stat-value" id="avgEntryHolders">-</div>
+                </div>
+                <div class="arrow" id="holderArrow">→</div>
+                <div class="holder-box">
+                    <div class="stat-label">Exit Holders</div>
+                    <div class="stat-value" id="avgExitHolders">-</div>
+                </div>
+                <div class="holder-box">
+                    <div class="stat-label">Change</div>
+                    <div class="stat-value" id="holderChange">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Positions -->
+        <div class="section">
+            <div class="section-title">🎯 Recent Positions</div>
+            <table class="positions-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>P&L %</th>
+                        <th>P&L SOL</th>
+                        <th>Hold Time</th>
+                        <th>Holder Flow</th>
+                        <th>Exit Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="positionsTable">
+                    <tr><td colspan="6" class="loading">Loading positions...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="update-time" id="updateTime">Loading...</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let refreshInterval;
+
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('totalTrades').textContent = data.total_trades.toLocaleString();
+                document.getElementById('winRate').textContent = `${data.win_rate_pct.toFixed(1)}%`;
+                document.getElementById('totalPnl').textContent = `${data.total_pnl_sol >= 0 ? '+' : ''}${data.total_pnl_sol.toFixed(2)} SOL`;
+                document.getElementById('openPositions').textContent = data.open_positions.toLocaleString();
+                document.getElementById('avgHoldTime').textContent = `${data.avg_hold_secs.toFixed(0)}s`;
+                document.getElementById('closedPositions').textContent = data.closed_positions.toLocaleString();
+
+                // Holder flow
+                document.getElementById('avgEntryHolders').textContent = Math.round(data.avg_entry_holders);
+                document.getElementById('avgExitHolders').textContent = Math.round(data.avg_exit_holders);
+
+                const holderChange = data.avg_exit_holders - data.avg_entry_holders;
+                const arrow = document.getElementById('holderArrow');
+                const changeEl = document.getElementById('holderChange');
+
+                changeEl.textContent = `${holderChange >= 0 ? '+' : ''}${Math.round(holderChange)}`;
+
+                if (holderChange > 0) {
+                    arrow.textContent = '↗';
+                    arrow.className = 'arrow up';
+                    changeEl.style.color = '#10b981';
+                } else if (holderChange < 0) {
+                    arrow.textContent = '↘';
+                    arrow.className = 'arrow down';
+                    changeEl.style.color = '#ef4444';
+                } else {
+                    arrow.textContent = '→';
+                    arrow.className = 'arrow';
+                    changeEl.style.color = '#9ca3af';
+                }
+
+                // Color code P&L
+                const pnlEl = document.getElementById('totalPnl');
+                pnlEl.className = data.total_pnl_sol >= 0 ? 'stat-value pnl-positive' : 'stat-value pnl-negative';
+
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        async function fetchPositions() {
+            try {
+                const response = await fetch(`${API_BASE}/positions`);
+                const data = await response.json();
+
+                const tbody = document.getElementById('positionsTable');
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No closed positions yet...</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(pos => {
+                    const holderChange = pos.exit_holders - pos.entry_holders;
+                    const holderIcon = holderChange > 0 ? '📈' : (holderChange < 0 ? '📉' : '➡️');
+                    const pnlClass = pos.pnl_pct >= 0 ? 'pnl-positive' : 'pnl-negative';
+
+                    return `
+                        <tr>
+                            <td>${pos.mint}</td>
+                            <td class="${pnlClass}">${pos.pnl_pct >= 0 ? '+' : ''}${pos.pnl_pct.toFixed(1)}%</td>
+                            <td class="${pnlClass}">${pos.pnl_sol >= 0 ? '+' : ''}${pos.pnl_sol.toFixed(4)}</td>
+                            <td>${pos.hold_secs}s</td>
+                            <td>
+                                <span class="holder-change">
+                                    <span>${pos.entry_holders}</span>
+                                    <span class="trend-icon">${holderIcon}</span>
+                                    <span>${pos.exit_holders}</span>
+                                </span>
+                            </td>
+                            <td><span class="decision-badge ${getReasonClass(pos.exit_reason)}">${pos.exit_reason}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error fetching positions:', error);
+            }
+        }
+
+        function getReasonClass(reason) {
+            if (reason && reason.includes('VWAP')) return 'vwap';
+            if (reason && reason.includes('momentum')) return 'momentum';
+            if (reason && reason.includes('time')) return 'time';
+            return '';
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('updateTime').textContent =
+                `Last updated: ${now.toLocaleTimeString()} • Auto-refresh every 5s`;
+        }
+
+        async function refresh() {
+            await Promise.all([fetchStats(), fetchPositions()]);
+            updateTimestamp();
+        }
+
+        // Initial load
+        refresh();
+
+        // Auto-refresh every 5 seconds
+        refreshInterval = setInterval(refresh, 5000);
+
+        // Update timestamp every second
+        setInterval(updateTimestamp, 1000);
+    </script>
+</body>
+</html>

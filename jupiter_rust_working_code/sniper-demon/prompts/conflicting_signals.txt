@@ -1,0 +1,70 @@
+# CONFLICTING SIGNALS: AI Decision Required
+
+## Position Data
+- Token: {mint}
+- Entry: {entry_sol} SOL
+- Current: {current_sol} SOL
+- Profit: {profit_multiple}x
+- Time Held: {time_elapsed}s
+
+## Signal Conflict
+- Momentum Score: {momentum_score}/1.0
+- Rug Risk: {rug_risk}/1.0
+- Volume Velocity: {volume_velocity}/1.0
+- Price Momentum: {price_momentum}/1.0
+- Holder Health: {holder_health}/1.0
+
+## Why This Needs AI
+
+Automated rules would exit now, BUT:
+- Example 1: Hit 2x target BUT momentum_score = 0.85 (very high)
+- Example 2: Momentum stalled BUT holder_health improving (new buyers entering)
+- Example 3: Rug risk moderate BUT volume exploding (could overcome)
+
+This is where human-level judgment matters.
+
+## Analysis Framework
+
+**Weigh these factors:**
+
+1. **Momentum Strength** (weight: 40%)
+   - momentum_score > 0.8 = Strong bull signal
+   - volume_velocity increasing = Growing interest
+   - price_momentum > 0.7 = More buyers than sellers
+
+2. **Risk Factors** (weight: 40%)
+   - rug_risk > 0.6 = Serious concern
+   - holder_health < 0.5 = Concentrated holdings
+   - time_elapsed > 300s = Risk increases with time
+
+3. **Profit Protection** (weight: 20%)
+   - profit_multiple > 2.0 = Should secure gains
+   - profit_multiple < 1.0 = Time to cut losses?
+   - has_recovered_initial = Can afford to hold longer
+
+## Decision Matrix
+
+**High Momentum + Low Risk:**
+→ Hold or Trail (let it run)
+
+**High Momentum + High Risk:**
+→ Partial exit (secure base, let some ride)
+
+**Low Momentum + Any Risk:**
+→ Exit (don't hope for recovery)
+
+**At 2x + High Momentum + Low Risk:**
+→ This is the KEY conflict - lean toward holding more
+
+**Provide nuanced decision:**
+```json
+{
+  "action": "ExitPartial",
+  "exit_percent": 45.0,
+  "confidence": 0.75,
+  "reasoning": "At 2.1x with momentum 0.82 (very strong) but rug risk 0.45 (moderate). Exit 45% to secure 110% recovery per Rule #9, hold 55% with tight trailing stop. Momentum justifies holding majority but risk requires partial derisking.",
+  "suggested_stop": 7.5
+}
+```
+
+**Your role: Make the judgment call that automation can't.**

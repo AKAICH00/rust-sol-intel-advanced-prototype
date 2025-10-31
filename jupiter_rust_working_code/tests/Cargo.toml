@@ -1,0 +1,11 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tokio = { version = "1.45.0", features = ["macros", "rt-multi-thread"] }
+base64 = "0.22.1"
+bs58 = "0.5.1"
+jup-ag-sdk = { path = "../jup-ag-sdk" }

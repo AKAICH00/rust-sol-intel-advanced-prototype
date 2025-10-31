@@ -1,0 +1,4 @@
+[workspace]
+
+resolver = "3"
+members = ["jup-ag-sdk", "examples", "tests", "pump-portal-sdk", "pump-sniper-bot", "sniper-demon", "simple-sniper", "smart-sniper", "ladder-sniper"]

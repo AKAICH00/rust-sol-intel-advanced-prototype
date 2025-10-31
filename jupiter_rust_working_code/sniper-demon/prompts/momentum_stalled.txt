@@ -1,0 +1,34 @@
+# MOMENTUM STALLED: 60-Second Timeout
+
+## Position Data
+- Token: {mint}
+- Entry: {entry_sol} SOL
+- Current: {current_sol} SOL
+- Profit: {profit_multiple}x
+- Time Held: {time_elapsed}s
+
+## Rule #7 Trigger
+- Momentum Score: {momentum_score}/1.0
+- Time Elapsed: {time_elapsed}s
+
+Rule: If momentum_score < 0.3 after 60s → Fast exit
+
+## Assessment
+
+This token has been held for {time_elapsed} seconds with low momentum ({momentum_score}).
+
+Factors:
+- If momentum_score < 0.2: Dead token, exit
+- If volume_velocity near 0: No interest, exit
+- If profit_multiple < 0.8: Cut losses fast
+- If holder_health improving: Maybe accumulation phase?
+
+**Provide exit decision:**
+```json
+{
+  "action": "ExitFull",
+  "confidence": 0.9,
+  "reasoning": "60s passed with momentum 0.18 (very low). No volume, no interest. Rule #7 fast exit applies. Cut losses at -12%.",
+  "suggested_stop": null
+}
+```
