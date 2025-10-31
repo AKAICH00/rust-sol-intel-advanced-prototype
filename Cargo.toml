@@ -1,0 +1,32 @@
+[package]
+name = "memecoin_trading_engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.20"
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+
+# Data ingestion and storage
+questdb-rs = "5.0.0"
+
+# ONNX inference
+ort = "2.0.0-rc.10"
+ndarray = "0.15"
+
+# Vector search
+qdrant-client = "1.15.0"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+clap = { version = "4.1", features = ["derive"] }
+prometheus = "0.14"
+warp = "0.3"
+once_cell = "1.18"
+opentelemetry = { version = "0.19", features = ["rt-tokio", "trace"] }
+opentelemetry-jaeger = { version = "0.17", default-features = false, features = ["rt-tokio"] }
+tracing-opentelemetry = "0.19"
